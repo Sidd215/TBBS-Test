@@ -3,6 +3,43 @@ import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import "./App.css";
 import emailjs from "emailjs-com";
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4 text-red-500">Something went wrong</h2>
+            <p className="text-gray-400 mb-6">Please refresh the page to try again.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
  
 
 
@@ -665,7 +702,7 @@ function Services({ NAVBAR_HEIGHT, setSelectedService, setCurrentPage, scrollToS
                   <p className="text-gray-200 text-lg">{highlightedService.details}</p>
 
                   <div className="flex flex-wrap gap-3">
-                    {highlightedService.samples.slice(0, 3).map((sample, idx) => {
+                    {Array.isArray(highlightedService.samples) && highlightedService.samples.slice(0, 3).map((sample, idx) => {
                       const src = safeImageUrl(sample, { width: 500 });
                       return src && (
                         <img
@@ -914,7 +951,7 @@ function ServiceDetail({ NAVBAR_HEIGHT, selectedService, setCurrentPage }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {selectedService?.samples?.map((img, idx) => {
+            {Array.isArray(selectedService?.samples) && selectedService.samples.map((img, idx) => {
               const src = safeImageUrl(img, { width: 900 });
               if (!src) return null;
               return (
@@ -1317,7 +1354,7 @@ function ProjectDetail({ NAVBAR_HEIGHT, selectedProject, setSelectedProject, set
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-              {project.images.map((img, imgIdx) => {
+              {Array.isArray(project.images) && project.images.map((img, imgIdx) => {
                 const src = safeImageUrl(img, { width: 900 });
                 if (!src) return null;
                 return (
@@ -1335,12 +1372,14 @@ function ProjectDetail({ NAVBAR_HEIGHT, selectedProject, setSelectedProject, set
               })}
             </div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="mb-12">
-              <h2 className="text-2xl md:text-4xl font-black mb-6">Demo</h2>
-              <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 backdrop-blur-sm">
-                <iframe className="w-full h-full" src={project.video} title="Demo Video" allowFullScreen />
-              </div>
-            </motion.div>
+            {project.video && (
+              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="mb-12">
+                <h2 className="text-2xl md:text-4xl font-black mb-6">Demo</h2>
+                <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 backdrop-blur-sm">
+                  <iframe className="w-full h-full" src={project.video} title="Demo Video" allowFullScreen />
+                </div>
+              </motion.div>
+            )}
 
             <ContactSection />
           </div>
@@ -1539,7 +1578,10 @@ useEffect(() => {
       image,
       samples
     }`
-  ).then(setServices);
+  ).then(setServices).catch(err => {
+    console.error('Failed to fetch services:', err);
+    setServices([]);
+  });
 }, []);
 
 
@@ -1554,7 +1596,10 @@ useEffect(() => {
       images,
       video
     }`
-  ).then(setProjects);
+  ).then(setProjects).catch(err => {
+    console.error('Failed to fetch projects:', err);
+    setProjects([]);
+  });
 }, []);
 
 
@@ -1679,18 +1724,20 @@ useEffect(() => {
   // Render
   // -------------------------
   return (
-    <div className="min-h-screen relative overflow-x-hidden">
-      <CinematicBackground />
+    <ErrorBoundary>
+      <div className="min-h-screen relative overflow-x-hidden">
+        <CinematicBackground />
 
-      <Navbar
-        scrolledPastHero={scrolledPastHero}
-        NAVBAR_HEIGHT={NAVBAR_HEIGHT}
-        scrollToSection={scrollToSection}
-        setCurrentPage={setCurrentPage}
-      />
+        <Navbar
+          scrolledPastHero={scrolledPastHero}
+          NAVBAR_HEIGHT={NAVBAR_HEIGHT}
+          scrollToSection={scrollToSection}
+          setCurrentPage={setCurrentPage}
+        />
 
-      <div className="relative z-10">{renderPage()}</div>
-    </div>
+        <div className="relative z-10">{renderPage()}</div>
+      </div>
+    </ErrorBoundary>
   );
 }
 
